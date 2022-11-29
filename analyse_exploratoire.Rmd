@@ -1,0 +1,20 @@
+Improtation des données dans l'environnement
+
+```{r}
+databrut<- read.delim("/Users/mcsommeliers/Documents/TP2_2003/VisiteMedicaleFreq_train.txt", sep = " ")
+```
+
+La première chose que je valide en regardant le descriptif des variables de ce jeu de données est 
+que toutes les données = à 0 pour la colonne 'handdum' correpondent à une valeur de 0 pour la colonne 'handper'. Je supprime la donnée
+si ce n'est pas le cas.
+
+```{r}
+adjustdata <- function(databrut)
+{
+  for (i in databrut)
+    if (((databrut$handdum == 0) & (databrut$handper ==0) | (databrut$handdum != 0) & (databrut$handper !=0)))
+        adjustdata <- rbind(i)
+}
+adjustdata <- rbind((databrut$handdum != 0) & (databrut$handper != 0))
+```
+
