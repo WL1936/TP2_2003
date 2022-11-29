@@ -1,20 +1,63 @@
-Improtation des données dans l'environnement
+Importation des données dans l'environnement
 
 ```{r}
-databrut<- read.delim("/Users/mcsommeliers/Documents/TP2_2003/VisiteMedicaleFreq_train.txt", sep = " ")
+databrut<- read.delim("/.../TP2_2003/VisiteMedicaleFreq_train.txt", sep = " ")
 ```
 
+```{r}
+summary(databrut)
+```
+
+
 La première chose que je valide en regardant le descriptif des variables de ce jeu de données est 
-que toutes les données = à 0 pour la colonne 'handdum' correpondent à une valeur de 0 pour la colonne 'handper'. Je supprime la donnée
+que toutes les données égales à 0 pour la colonne 'handdum' correspondent à une valeur de 0 pour la colonne 'handper'. Je supprime les données
 si ce n'est pas le cas.
 
 ```{r}
-adjustdata <- function(databrut)
-{
-  for (i in databrut)
-    if (((databrut$handdum == 0) & (databrut$handper ==0) | (databrut$handdum != 0) & (databrut$handper !=0)))
-        adjustdata <- rbind(i)
-}
-adjustdata <- rbind((databrut$handdum != 0) & (databrut$handper != 0))
+databrut[databrut$handdum == 0 & databrut$handper !=0, ] ## On constate que 14 entrées présentent ce problème, nous les retirons
+adjustdata <- databrut[((databrut$handdum == 0) & (databrut$handper ==0) | (databrut$handdum != 0) & (databrut$handper !=0)), ]
 ```
 
+Nous devons aussi valider que si une personne possède une assurance, alors il existe aussi une valeur non-nulle dans la partie 'ancov',
+de même que si la personne n'a aucue couverture, elle ne possède aucune période de couverture. On voit que certains sujets n'ont aucune assurance mais qu'aucune entrée
+ne présente une valeur nulle pour 'ancov', ce qui falsifie les données. Nous devrons alors supprimer ces données.
+
+```{r}
+table(adjustdata$public, adjustdata$addon) ## On voit que 131 sujets n'ont aucune couverture d'assurance ...
+adjustdata[adjustdata$public == 0 & adjustdata$addon == 0, 19] ## ... mais qu'aucun de ces sujets ne présentent de valeur nulle pour 'ancov'
+covadjustdata <- adjustdata[((adjustdata$public == 0) & (adjustdata$addon != 0) | (adjustdata$public != 0) & (adjustdata$addon == 0) | (adjustdata$public != 0) & (adjustdata$addon != 0)), ]
+```
+
+Ensuite, nous nous assurons qu'il n'y a pas d'erreur dans les entrées de données en lien avec l'emploi des sujets. On considère qu'un sujet ne peut être à la fois col bleu et col blanc.
+Aussi, si un sujet est col bleu ou col blanc, il a forcément un régime d'assurance. Les trois lignes de code suivantes nous le confirmeront si elles n'offrent aucun résultat.
+
+```{r}
+covadjustdata[covadjustdata$bluec == 1 & covadjustdata$whitec == 1,] ## Aucun sujet n'est col blanc ET col bleu
+covadjustdata[covadjustdata$bluec == 1 & covadjustdata$addon == 0 & covadjustdata$public == 0,] ## Tous les cols bleus ont au moins une assurance
+covadjustdata[covadjustdata$whitec == 1 & covadjustdata$addon == 0 & covadjustdata$public == 0,] ## Tous les cols blancs ont au moins une assurance
+```
+Nous pouvons aussi confirmer que tous les 'cols', bleus ou blancs, ont une valeur de 1 pour la colonne 'working' (sans erreur). Autrement, nous pourrions corriger les lignes contenant des erreurs et éventuellement considérer la suppression des variables 'bluec' et 'whitec' puisque qu'il y a peut-être une répétition dans ces champs. 
+
+```{r}
+covadjustdata[covadjustdata$bluec == 1 & covadjustdata$working == 0 | covadjustdata$whitec == 1 & covadjustdata$working == 0,] ## 9 données démontrent ces erreurs
+covadjustdata[covadjustdata$bluec == 1 & covadjustdata$working == 0 | covadjustdata$whitec == 1 & covadjustdata$working == 0, c('working')] <- 1 ## correction des erreurs
+```
+Avant de créer des graphique de relation, nous allons créer la variable 'freqvis" qui représentent la fréquence des visites en fonction de la période de couverture. L'important est de ramener ce domaine de cette variable entre 0 et 1 pour considérer le fait des périodes de couverture différentes d'un assuré à un autre.
+
+```{r}
+freqvis <- covadjustdata$ancov / covadjustdata$docvis 
+freqvis <- replace(freqvis, freqvis == Inf, 0)
+finaldata <- cbind(covadjustdata[, c("female", "year", "age", "hsat", "handdum", "handper", "hhninc", "hhkids", "educ", "married", "working", "bluec", "whitec", "self", "docvis", "public", "addon", "ancov")], freqvis)
+```
+
+
+```{r}
+summary(finaldata)
+```
+
+Graphique des relations
+
+```{r}
+pairs(finaldata[, c("female", "year", "age", "hsat", "handdum", "handper", "hhninc", "hhkids", "educ", "married", "working", "bluec", "whitec", "self", "docvis", "public", "addon", "ancov")]) ## Toutes les variables, y compris les indicatrices
+pairs(finaldata[, c("year", "age", "hsat", "handper", "hhninc", "educ", "docvis", "ancov", "freqvis")]) ## Toutes les variables sauf les indicatrices
+```
