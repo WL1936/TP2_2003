@@ -66,10 +66,8 @@ Retrait des variables :
   - year : agit un peu comme un index, n'ajoute aucune compréhension pour la variable endogène
   - bluec : pour des raisons invoquées plus tôt, il suffit de savoir que la personne travaille, pasnécessairement ce qu'elle fait. Les cols bleus ( ou blancs) ne sont pas plus ou moins suceptibles de se fréquenter un plus (ou moins) grand nombre de fois le médecin qu'une autre profession.
   - whitec : idem
-  - ancov : affecté à freqvis
-  - docvis : affecté à freqvis
+  - freqvis : puisque notre variable est Docvis, nous utilserons ancov en log pour un offset dans le modèle poisson 
 ```{r}
-moddata <- finaldata[, c(1, 3:11, 14, 16, 17, 19)] # données n'incluant que les variables d'intérêt, à priori
+moddata <- finaldata[, c(1, 3:11, 14:18)] # données n'incluant que les variables d'intérêt, à priori
 ```
-  
   
