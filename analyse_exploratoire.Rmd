@@ -1,7 +1,7 @@
 Importation des données dans l'environnement
 
 ```{r}
-databrut<- read.delim("/.../TP2_2003/VisiteMedicaleFreq_train.txt", sep = " ")
+databrut<- read.delim("/Users/mcsommeliers/Documents/TP2_2003/VisiteMedicaleFreq_train.txt", sep = " ")
 ```
 
 ```{r}
@@ -61,3 +61,15 @@ Graphique des relations
 pairs(finaldata[, c("female", "year", "age", "hsat", "handdum", "handper", "hhninc", "hhkids", "educ", "married", "working", "bluec", "whitec", "self", "docvis", "public", "addon", "ancov")]) ## Toutes les variables, y compris les indicatrices
 pairs(finaldata[, c("year", "age", "hsat", "handper", "hhninc", "educ", "docvis", "ancov", "freqvis")]) ## Toutes les variables sauf les indicatrices
 ```
+Après avoir poser ces modèles, il importe toujours de voir que certaines variables pourraient être enlevées. Nous repartons de finaldata et faisons les modifications suivantes :
+Retrait des variables :
+  - year : agit un peu comme un index, n'ajoute aucune compréhension pour la variable endogène
+  - bluec : pour des raisons invoquées plus tôt, il suffit de savoir que la personne travaille, pasnécessairement ce qu'elle fait. Les cols bleus ( ou blancs) ne sont pas plus ou moins suceptibles de se fréquenter un plus (ou moins) grand nombre de fois le médecin qu'une autre profession.
+  - whitec : idem
+  - ancov : affecté à freqvis
+  - docvis : affecté à freqvis
+```{r}
+moddata <- finaldata[, c(1, 3:11, 14, 16, 17, 19)] # données n'incluant que les variables d'intérêt, à priori
+```
+  
+  
