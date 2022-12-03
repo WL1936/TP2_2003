@@ -10,23 +10,32 @@ summary(databrut)
 
 
 La première chose que je valide en regardant le descriptif des variables de ce jeu de données est 
-que toutes les données égales à 0 pour la colonne 'handdum' correspondent à une valeur de 0 pour la colonne 'handper'. Je supprime les données
-si ce n'est pas le cas.
+que toutes les données égales à 0 pour la colonne 'handdum' correspondent à une valeur de 0 pour la colonne 'handper'. Nous modifions les données de "handdum" à 1 s'il y a une valeur non-négative pour l'entrée "handper" correspondante.
 
 ```{r}
-databrut[databrut$handdum == 0 & databrut$handper !=0, ] ## On constate que 14 entrées présentent ce problème, nous les retirons
-adjustdata <- databrut[((databrut$handdum == 0) & (databrut$handper ==0) | (databrut$handdum != 0) & (databrut$handper !=0)), ]
+databrut[databrut$handdum == 0 & databrut$handper !=0, ] ## On constate que 14 entrées présentent ce problème, nous les corrigeons
+databrut[databrut$handdum == 0 & databrut$handper !=0, c("handdum")] <- 1
+adjustdata <- databrut
 ```
 
 Nous devons aussi valider que si une personne possède une assurance, alors il existe aussi une valeur non-nulle dans la partie 'ancov',
-de même que si la personne n'a aucue couverture, elle ne possède aucune période de couverture. On voit que certains sujets n'ont aucune assurance mais qu'aucune entrée
-ne présente une valeur nulle pour 'ancov', ce qui falsifie les données. Nous devrons alors supprimer ces données.
+de même que si la personne n'a aucune couverture, elle ne possède aucune période de couverture. On voit que certains sujets n'ont aucune assurance mais qu'aucune entrée
+ne présente une valeur nulle pour 'ancov', ce qui porte à croire 
 
 ```{r}
-table(adjustdata$public, adjustdata$addon) ## On voit que 131 sujets n'ont aucune couverture d'assurance ...
-adjustdata[adjustdata$public == 0 & adjustdata$addon == 0, 19] ## ... mais qu'aucun de ces sujets ne présentent de valeur nulle pour 'ancov'
-covadjustdata <- adjustdata[((adjustdata$public == 0) & (adjustdata$addon != 0) | (adjustdata$public != 0) & (adjustdata$addon == 0) | (adjustdata$public != 0) & (adjustdata$addon != 0)), ]
+table(adjustdata$public, adjustdata$addon) ## On voit que 132 sujets n'ont aucune couverture d'assurance ...
+adjustdata[adjustdata$public == 0 & adjustdata$addon == 0,] ## ... mais qu'aucun de ces sujets ne présentent de valeur nulle pour 'ancov'
 ```
+Nous considérons garder ces couvertures même si aucune assurance n'a été enregistrée dans leur dossier. Il est possible qu'il soit couvert par l'assurance de leur conjoint(e).
+Nous vérifions si ces hypothèses sont possibles ci-dessous
+```{r}
+adjustdata[adjustdata$public == 0 & adjustdata$addon == 0 & adjustdata$married != 1 & adjustdata$working ==0, ] # Voic 2 cas où l'hypothèse ne peut être vérfiée, nous supprimons alors ces données
+covadjustdata <- adjustdata[-c(283, 361),] 
+```
+
+
+
+
 
 Ensuite, nous nous assurons qu'il n'y a pas d'erreur dans les entrées de données en lien avec l'emploi des sujets. On considère qu'un sujet ne peut être à la fois col bleu et col blanc.
 Aussi, si un sujet est col bleu ou col blanc, il a forcément un régime d'assurance. Les trois lignes de code suivantes nous le confirmeront si elles n'offrent aucun résultat.
@@ -36,11 +45,9 @@ covadjustdata[covadjustdata$bluec == 1 & covadjustdata$whitec == 1,] ## Aucun su
 covadjustdata[covadjustdata$bluec == 1 & covadjustdata$addon == 0 & covadjustdata$public == 0,] ## Tous les cols bleus ont au moins une assurance
 covadjustdata[covadjustdata$whitec == 1 & covadjustdata$addon == 0 & covadjustdata$public == 0,] ## Tous les cols blancs ont au moins une assurance
 ```
-Nous pouvons aussi confirmer que tous les 'cols', bleus ou blancs, ont une valeur de 1 pour la colonne 'working' (sans erreur). Autrement, nous pourrions corriger les lignes contenant des erreurs et éventuellement considérer la suppression des variables 'bluec' et 'whitec' puisque qu'il y a peut-être une répétition dans ces champs. 
-
+Nous constatons que tous les 'cols', bleus ou blancs, n'ont pas nécessairement une valeur de 1 pour la colonne 'working'. Nous ne changerons pas les valeur pour "working" pour se prévaloir de la possibilité d'un arrêt de travail temporaire, congé sans solde, ou autre.
 ```{r}
-covadjustdata[covadjustdata$bluec == 1 & covadjustdata$working == 0 | covadjustdata$whitec == 1 & covadjustdata$working == 0,] ## 9 données démontrent ces erreurs
-covadjustdata[covadjustdata$bluec == 1 & covadjustdata$working == 0 | covadjustdata$whitec == 1 & covadjustdata$working == 0, c('working')] <- 1 ## correction des erreurs
+covadjustdata[covadjustdata$bluec == 1 & covadjustdata$working == 0 | covadjustdata$whitec == 1 & covadjustdata$working == 0,] ## 10 données démontrent 
 ```
 Avant de créer des graphique de relation, nous allons créer la variable 'freqvis" qui représentent la fréquence des visites en fonction de la période de couverture. L'important est de ramener ce domaine de cette variable entre 0 et 1 pour considérer le fait des périodes de couverture différentes d'un assuré à un autre.
 
@@ -51,15 +58,22 @@ finaldata <- cbind(covadjustdata[, c("female", "year", "age", "hsat", "handdum",
 ```
 
 
+
 ```{r}
 summary(finaldata)
 ```
+Puisque le modèle comprendra en certains points des termes offset (notamment pour le temps de couverture, nous n'utiliserons pas la variable freqvis). Le tableau de données qui ressort alors de notre analyse exploratoire est : covadjustdata
+
+```{r}
+summary(covadjustdata)
+```
+
 
 Graphique des relations
 
 ```{r}
-pairs(finaldata[, c("female", "year", "age", "hsat", "handdum", "handper", "hhninc", "hhkids", "educ", "married", "working", "bluec", "whitec", "self", "docvis", "public", "addon", "ancov")]) ## Toutes les variables, y compris les indicatrices
-pairs(finaldata[, c("year", "age", "hsat", "handper", "hhninc", "educ", "docvis", "ancov", "freqvis")]) ## Toutes les variables sauf les indicatrices
+pairs(covadjustdata[, c("female", "year", "age", "hsat", "handdum", "handper", "hhninc", "hhkids", "educ", "married", "working", "bluec", "whitec", "self", "docvis", "public", "addon", "ancov")]) ## Toutes les variables, y compris les indicatrices
+pairs(covadjustdata[, c("year", "age", "hsat", "handper", "hhninc", "educ", "docvis", "ancov")]) ## Toutes les variables sauf les indicatrices
 ```
 Après avoir poser ces modèles, il importe toujours de voir que certaines variables pourraient être enlevées. Nous repartons de finaldata et faisons les modifications suivantes :
 Retrait des variables :
