@@ -66,51 +66,68 @@ df <- data.frame("Modèle" = "courant", "Pearson" = sum(residuals(glmpoiscourant
 ```
 
 d )
+
 ```{r}
+# Estimation des paramètres + VaR (normale et poisson)
 predict_75_a_84 <- predict(glmpoiscourant,med_valid[med_valid$ID>=1075 & med_valid$ID<=1084,],
-                           type = "link", se.fit = TRUE)
+                           type = "response", se.fit = TRUE)
 
 VaR0.99 <- qnorm(0.99, predict_75_a_84$fit, predict_75_a_84$se.fit)
-variance <- 
-moy_et <- data.frame("Moyenne" = predict_75_a_84$fit,
+VaR0.99_qpois <- qpois(0.99, predict_75_a_84$fit)
+
+moy_et_VaR <- data.frame("Moyenne" = predict_75_a_84$fit,
                      "Écart-type" = predict_75_a_84$se.fit,
-                     "VaR0.99" = VaR0.99)
+                     "VaR0.99_norm" = VaR0.99, 
+                     "VaR0.99_pois" = VaR0.99_qpois)
+moy_et_VaR
 
 
-round(exp(moy_et),3) # Choisir un des deux
-
-
-
-# La différence est l'écart-type, une petite investigation doit être faite.
-
-max(predict(glmpoiscourant,med_valid[med_valid$ID>=1075 & med_valid$ID<=1084,],
-            type = "response")) # Pour VaR0.99
 ```
-```{r}
-predict_75_a_84_2 <- predict(glmpoiscourant,med_valid[med_valid$ID>=1075 & med_valid$ID<=1084,],
-        type = "response", se.fit = TRUE)
-
-moy_et_2 <- data.frame("Moyenne" = predict_75_a_84_2$fit,
-                     "Écart-type" = predict_75_a_84_2$se.fit)
-
-round(exp(moy_et_2),3) # Choisir un des deux
-
-
-
-# La différence est l'écart-type, une petite investigation doit être faite.
-
-max(predict(glmpoiscourant,med_valid[med_valid$ID>=1075 & med_valid$ID<=1084,],
-            type = "response")) # Pour VaR0.99
-```
+e)
 
 ```{r}
-(lambda_75_a_84 <- predict(glmpoiscourant,med_valid[med_valid$ID>=1075 & med_valid$ID<=1084,],
-                          type = "response"))
+eta_75_a_84 <- predict(glmpoiscourant,med_valid[med_valid$ID>=1075 & med_valid$ID<=1084,],
+                          type = "link", se.fit = TRUE)
+# On inverse tout de suite les bornes pour 'eta', puisqu'on veut fournir un intervalle de confiance pour 'mu'
+int_conf_eta <- data.frame("lower" = eta_75_a_84$fit + qnorm(0.975) * eta_75_a_84$se.fit,
+                       "fit" = eta_75_a_84$fit,
+                       "upper" = eta_75_a_84$fit + qnorm(0.025) * eta_75_a_84$se.fit)
+int_conf_lambda <- exp(int_conf_eta)
+round(exp(-int_conf_lambda), 5) # IC sur la probabilité P(Yi = 0)
 
-prob_0<- ppois(0, lambda_75_a_84)
-(int_conf <- data.frame("lower" = prob_0 + qnorm(0.025) * lambda_75_a_84,
-                       "fit" = prob_0,
-                       "upper" = prob_0 + qnorm(0.975) * lambda_75_a_84))
+```
+f)
+```{r}
+## Graphique fonction de masse de probabilité estimé
 
+lambda_94_et_217 <- predict(glmpoiscourant,med_valid[med_valid$ID ==1094 | med_valid$ID ==1217,],
+                            type = "response")/med_valid[med_valid$ID ==1094 | med_valid$ID ==1217, c('ancov')]
+
+# La division est pour mettre ça sur une échelle annuelle
+
+plot(1:20,dpois(1:20,lambda = lambda_94_et_217[1]), type = "h",
+     xlab = "Nombre annuel de consultation",
+     ylab = "Probabilité")
+     #sub = "Fonction de masse de probabilité pour le nombre annuel de consultation estimées pour l'ID 1094")
+
+plot(1:25,dpois(1:25,lambda = lambda_94_et_217[2]), type = "h",
+     xlab = "Nombre annuel de consultation",
+     ylab = "Probabilité")
+     #sub = "Fonction de masse de probabilité pour le nombre annuel de consultation estimées pour l'ID 1217")
+
+```
+g)
+
+```{r}
+# Pearson
+hist(residuals(glmpoiscourant,type = "pearson"))
+
+# Anscombe revoir pour être sur
+hatmu <- fitted(glmpoiscourant)
+anscombe <- 1.5*((med_train_adjust$docvis)^(2/3)-hatmu^(2/3))/hatmu^(1/6)
+hist(anscombe)
+
+# Déviance
+hist(residuals(glmpoiscourant,type = "deviance"))
 ```
 
