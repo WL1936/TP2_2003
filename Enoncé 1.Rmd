@@ -1,0 +1,116 @@
+```{r}
+glmpoiscomplet <- glm(docvis~female+year+age+hsat+handdum+handper+hhninc+hhkids+educ+
+                        married+working+bluec+whitec+self+public+addon+offset(log(ancov)),
+                      family = poisson, data = med_train_adjust)
+
+(summaryglmpoiscomplet <- summary(glmpoiscomplet))
+
+### Coefficient et écart-type pour a)
+summaryglmpoiscomplet$coefficients[,c(1,2)]
+```
+
+```{r}
+qchisq(0.99,1) # Valeur de référence 6,634897
+
+anova(glmpoiscomplet) # Le plus petit est working avec 0.63
+
+# Modèle sans working
+glmpois1 <- glm(docvis~female+year+age+hsat+handdum+handper+hhninc+hhkids+educ+
+                  married+bluec+whitec+self+public+addon+offset(log(ancov)),
+                family = poisson, data = med_train_adjust)
+
+anova(glmpois1) # Le plus petit est whitec avec 0.00
+
+# Modèle sans whitec et working
+glmpois2 <- glm(docvis~female+year+age+hsat+handdum+handper+hhninc+hhkids+educ+
+                  married+bluec+self+public+addon+offset(log(ancov)),
+                family = poisson, data = med_train_adjust)
+
+anova(glmpois2) # Le plus petit est handum avec 1.17
+
+# Modèle sans whitec, working et handum
+glmpois3 <- glm(docvis~female+year+age+hsat+handper+hhninc+hhkids+educ+
+                  married+bluec+self+public+addon+offset(log(ancov)),
+                family = poisson, data = med_train_adjust)
+
+anova(glmpois3) # Le plus petit est addon avec 1.78
+
+# Modèle sans whitec, working, handum et addon
+glmpois4 <- glm(docvis~female+year+age+hsat+handper+hhninc+hhkids+educ+
+                  married+bluec+self+public+offset(log(ancov)),
+                family = poisson, data = med_train_adjust)
+
+anova(glmpois4) # Le plus petit est public avec 4.72
+
+# Modèle courant sans whitec, working, handum, addon et public
+glmpoiscourant <- glm(docvis~female+year+age+hsat+handper+hhninc+hhkids+educ+
+                        married+bluec+self+offset(log(ancov)),
+                      family = poisson, data = med_train_adjust)
+
+anova(glmpoiscourant)
+```
+c)
+```{r}
+# Pearson
+summary(glmpoiscourant)
+qchisq(0.99,length(med_train_adjust)-length(summary(glmpoiscourant)$coefficients[,1])+1) # Référence 20.09024 avec n-p' degré de liberté
+sum(residuals(glmpoiscourant,type = "pearson")^2)
+
+# Déviance
+summary(glmpoiscourant)$deviance # Selon les notes de cours page 155
+
+# AIC
+summary(glmpoiscourant)$aic
+
+df <- data.frame("Modèle" = "courant", "Pearson" = sum(residuals(glmpoiscourant,type = "pearson")^2), "Déviance" = summary(glmpoiscourant)$deviance, "AIC" = summary(glmpoiscourant)$aic)
+```
+
+d )
+```{r}
+predict_75_a_84 <- predict(glmpoiscourant,med_valid[med_valid$ID>=1075 & med_valid$ID<=1084,],
+                           type = "link", se.fit = TRUE)
+
+VaR0.99 <- qnorm(0.99, predict_75_a_84$fit, predict_75_a_84$se.fit)
+variance <- 
+moy_et <- data.frame("Moyenne" = predict_75_a_84$fit,
+                     "Écart-type" = predict_75_a_84$se.fit,
+                     "VaR0.99" = VaR0.99)
+
+
+round(exp(moy_et),3) # Choisir un des deux
+
+
+
+# La différence est l'écart-type, une petite investigation doit être faite.
+
+max(predict(glmpoiscourant,med_valid[med_valid$ID>=1075 & med_valid$ID<=1084,],
+            type = "response")) # Pour VaR0.99
+```
+```{r}
+predict_75_a_84_2 <- predict(glmpoiscourant,med_valid[med_valid$ID>=1075 & med_valid$ID<=1084,],
+        type = "response", se.fit = TRUE)
+
+moy_et_2 <- data.frame("Moyenne" = predict_75_a_84_2$fit,
+                     "Écart-type" = predict_75_a_84_2$se.fit)
+
+round(exp(moy_et_2),3) # Choisir un des deux
+
+
+
+# La différence est l'écart-type, une petite investigation doit être faite.
+
+max(predict(glmpoiscourant,med_valid[med_valid$ID>=1075 & med_valid$ID<=1084,],
+            type = "response")) # Pour VaR0.99
+```
+
+```{r}
+(lambda_75_a_84 <- predict(glmpoiscourant,med_valid[med_valid$ID>=1075 & med_valid$ID<=1084,],
+                          type = "response"))
+
+prob_0<- ppois(0, lambda_75_a_84)
+(int_conf <- data.frame("lower" = prob_0 + qnorm(0.025) * lambda_75_a_84,
+                       "fit" = prob_0,
+                       "upper" = prob_0 + qnorm(0.975) * lambda_75_a_84))
+
+```
+
